@@ -1,6 +1,6 @@
 import socket
 from ieee754 import single  # código para padrão ieee754 https://github.com/canbula/ieee754
-from sympy import symbols, to_cnf
+from sympy import symbols, simplify_logic
 
 def start_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -14,20 +14,23 @@ def start_server():
             print(f"Conexão estabelecida com {client_address}")
 
             data = client_socket.recv(1024).decode()
-            received_data = data.split(maxsplit=1)
+            received_data = data.split()
             prefix = received_data[0]
 
-            if prefix == "convert" and len(received_data) == 2:
-                original_base, original_number, target_base = map(int, received_data[1].split())
-                original_number = int(original_number, original_base)
-                converted_number = convert_base(original_number, target_base)
+            if prefix == "convert" and len(received_data) == 4:
+                original_base = int(received_data[1])
+                original_number = received_data[2]
+                target_base = int(received_data[3])
+                number_in_base_10 = int(original_number, original_base)
+                converted_number = convert_base(number_in_base_10, target_base)
                 client_socket.send(converted_number.encode())
 
-            elif prefix == "math" and len(received_data) == 2:
-                num1, num2, operation = received_data[1].split()
-                num1 = int(num1, 2)
-                num2 = int(num2, 2)
-                result_bin = perform_math(num1, num2, operation)
+            elif prefix == "math" and len(received_data) == 4:
+                num1 = int(received_data[1], 2)
+                num2 = int(received_data[2], 2)
+                operation = received_data[3]
+                max_bits = max(len(received_data[1]), len(received_data[2]))
+                result_bin = perform_math(num1, num2, operation, max_bits)
                 client_socket.send(result_bin.encode())
 
             elif prefix == "ieee754" and len(received_data) == 2:
@@ -40,11 +43,14 @@ def start_server():
                 result = ' '.join(f'{ord(char):02x}' for char in palavra)
                 client_socket.send(result.encode())
 
-            elif prefix == "simp" and len(received_data) == 2:
-                exp = received_data[1]
-                a, b, c, d, e = symbols('a, b, c, d, e')
-                result = to_cnf(eval(exp), True)
-                client_socket.send(str(result).encode())
+            elif prefix == "simp":
+                exp = ' '.join(received_data[1:])
+                a, b, c, d, e = symbols('a b c d e')
+                try:
+                    result = simplify_logic(exp, form='cnf')
+                    client_socket.send(str(result).encode())
+                except Exception as e:
+                    client_socket.send(f"Ocorreu um erro na simplificação: {e}".encode())
 
             else:
                 client_socket.send("Dados inválidos. Formato incorreto.".encode())
@@ -66,20 +72,22 @@ def convert_base(number, target_base):
     else:
         return "Base inválida"
 
-def perform_math(num1, num2, operation):
+def perform_math(num1, num2, operation, max_bits):
     if operation == '+':
-        return bin(num1 + num2)[2:]
+        result = num1 + num2
     elif operation == '-':
-        return bin(num1 - num2)[2:]
+        result = num1 - num2
     elif operation == '*':
-        return bin(num1 * num2)[2:]
+        result = num1 * num2
     elif operation == '/':
         if num2 != 0:
-            return bin(num1 // num2)[2:]
+            result = num1 // num2
         else:
-            return "Erro: Divisão por zero"
+            return "Erro: Divisão por zero".zfill(max_bits)
     else:
-        return "Operação inválida"
+        return "Operação inválida".zfill(max_bits)
+    
+    return format(result, f'0{max_bits}b')
 
 if __name__ == "__main__":
     start_server()

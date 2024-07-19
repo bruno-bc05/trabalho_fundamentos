@@ -120,11 +120,11 @@ if __name__ == "__main__":
             else:
                 print("Operação inválida.")
         elif opcao == 3:
-            num1 = input("Número 1 (em binário): ")
-            num2 = input("Número 2 (em binário): ")
+            num1 = input("Número a ser dividido (em binário): ")
+            num2 = input("Número dívisor (em binário): ")
             divisao(num1, num2)
         elif opcao == 4:
-            num1 = input("Número (decimal): ")
+            num1 = input("Número a ser transformado no padrao IEEE754 (decimal): ")
             IEE754(num1)
         elif opcao == 5:
             palavra = input("Forneça a palavra a ser codificada em UTF-8: ")
